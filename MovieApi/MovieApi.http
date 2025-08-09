@@ -1,0 +1,9 @@
+@MovieApi_HostAddress = http://localhost:5223
+
+### Obtener todas las películas
+GET {{MovieApi_HostAddress}}/api/movies
+Accept: application/json
+
+### Swagger JSON (documento OpenAPI)
+GET {{MovieApi_HostAddress}}/swagger/v1/swagger.json
+Accept: application/json
