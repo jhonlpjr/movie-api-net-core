@@ -17,8 +17,8 @@ namespace Test.Infrastructure
         {
             // Arrange
             var docs = new List<MovieDocument> {
-        new() { Id = "1", Title = "Test", Genre = new() { "Action" }, Year = 2020, Rating = 8.0, Popularity = 10 }
-    };
+                new() { Id = "1", Title = "Test", Genre = new() { "Action" }, Year = 2020, Rating = 8.0, Popularity = 10 }
+            };
 
             // Cursor simulado (prepárate para ambos: MoveNext y MoveNextAsync)
             var cursorMock = new Mock<IAsyncCursor<MovieDocument>>();

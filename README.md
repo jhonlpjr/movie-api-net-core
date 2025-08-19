@@ -63,6 +63,24 @@ env/
 
 ---
 
+
+## 🧪 Unit Testing
+
+Unit tests are located in the `Test/` folder.
+
+You can run them in two ways:
+
+**From the IDE:**
+- Open the solution in Visual Studio or VS Code and run the tests from the Test Explorer panel.
+
+**From the command line:**
+```bash
+dotnet test
+```
+This will execute all unit tests in the project.
+
+---
+
 ## 🚀 Running Locally
 
 ### **Option 1: Using Make (recommended)**
