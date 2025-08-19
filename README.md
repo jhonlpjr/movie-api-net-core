@@ -19,7 +19,7 @@ This project is containerized with **Docker**, configured for **multi-environmen
 ## 🛠️ Tech Stack
 
 **Backend**
-- .NET Core 8 (Web API)
+- .NET Core 9 (Web API)
 - MongoDB Atlas
 - Redis
 

@@ -21,7 +21,14 @@ public class MongoMovieRepository : IMovieRepository
     public async Task<IEnumerable<Movie>> GetAllAsync(CancellationToken ct = default)
     {
         _logger.LogInformation("Retrieving all movies from MongoDB.");
-        var docs = await _col.Find(FilterDefinition<MovieDocument>.Empty).ToListAsync(ct);
+
+        using var cursor = await _col.FindAsync(
+            filter: FilterDefinition<MovieDocument>.Empty,
+            options: new FindOptions<MovieDocument, MovieDocument>(),
+            cancellationToken: ct);
+
+        var docs = await cursor.ToListAsync(ct);
+
         _logger.LogInformation("{Count} movies retrieved from MongoDB.", docs.Count);
         return docs.Select(x => x.ToDomain());
     }
