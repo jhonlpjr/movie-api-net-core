@@ -2,7 +2,7 @@
 using Microsoft.Extensions.Hosting;
 using MongoDB.Driver;
 
-namespace Infrastructure.Seed;
+namespace Infraestructure.Persistance.Mongo.Seed;
 
 public class MongoSeeder : IHostedService
 {
@@ -23,9 +23,9 @@ public class MongoSeeder : IHostedService
         {
             await col.InsertManyAsync(new[]
             {
-                new Movie { Title="Inception",    Genre=["Sci-Fi","Action"], Rating=8.8, Year=2010, Popularity=95 },
-                new Movie { Title="Interstellar",  Genre=["Sci-Fi","Drama"], Rating=8.6, Year=2014, Popularity=92 },
-                new Movie { Title="The Dark Knight", Genre=["Action","Crime"], Rating=9.0, Year=2008, Popularity=98 }
+                new Movie("Inception",    new List<string> { "Sci-Fi", "Action" }, 2010, 8.8, 95),
+                new Movie("Interstellar", new List<string> { "Sci-Fi", "Drama" }, 2014, 8.6, 92),
+                new Movie("The Dark Knight", new List<string> { "Action", "Crime" }, 2008, 9.0, 98)
             }, cancellationToken: ct);
         }
     }

@@ -3,8 +3,8 @@ using Domain.Repositories;
 
 namespace Application.UseCases;
 
-public class GetPopularMoviesUseCase(IMovieRepository repo)
+public class GetRecommendedMoviesUseCase(IMovieRepository repo)
 {
     public Task<IEnumerable<Movie>> ExecuteAsync(int limit = 20, CancellationToken ct = default)
-        => repo.GetPopularAsync(limit, ct);
+        => repo.GetRecommendationsAsync(limit, ct);
 }
