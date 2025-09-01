@@ -44,18 +44,92 @@ public class MongoMovieRepository : IMovieRepository
         return doc?.ToDomain();
     }
 
-    public async Task<IEnumerable<Movie>> SearchAsync(string? q, string? genre = null, int limit = 50, CancellationToken ct = default)
+    public async Task<IEnumerable<Movie>> SearchAsync(
+        string? query = null,
+        string? genre = null,
+        int? yearFrom = null,
+        int? yearTo = null,
+        int? popularity = null,
+        double? rating = null,
+        string? orderBy = null,
+        string? orderDirection = null,
+        int limit = 50,
+        CancellationToken ct = default)
     {
-        _logger.LogInformation("Searching movies. Query: '{Query}', Genre: '{Genre}', Limit: {Limit}", q, genre, limit);
+        _logger.LogInformation(
+            "Searching movies. Query: '{Query}', Genre: '{Genre}', YearFrom: {YearFrom}, YearTo: {YearTo}, Popularity: {Popularity}, Rating: {Rating}, OrderBy: {OrderBy}, OrderDirection: {OrderDirection}, Limit: {Limit}",
+            query, genre, yearFrom, yearTo, popularity, rating, orderBy, orderDirection, limit);
+
         if (limit <= 0) limit = 50;
 
-        var f = Builders<MovieDocument>.Filter.Empty;
-        if (!string.IsNullOrWhiteSpace(q))
-            f &= Builders<MovieDocument>.Filter.Regex(x => x.Title, new MongoDB.Bson.BsonRegularExpression(q.Trim(), "i"));
-        if (!string.IsNullOrWhiteSpace(genre))
-            f &= Builders<MovieDocument>.Filter.AnyEq(x => x.Genre, genre.Trim());
+        var filters = new List<FilterDefinition<MovieDocument>>();
 
-        var docs = await _col.Find(f).Limit(limit).ToListAsync(ct);
+        // Query tipo like en Title o Description (insensible a mayúsculas)
+        if (!string.IsNullOrWhiteSpace(query))
+        {
+            var regex = new MongoDB.Bson.BsonRegularExpression(query.Trim(), "i");
+            filters.Add(Builders<MovieDocument>.Filter.Or(
+                Builders<MovieDocument>.Filter.Regex(x => x.Title, regex),
+                Builders<MovieDocument>.Filter.Regex(x => x.Description, regex)
+            ));
+        }
+
+        // Genre tipo like en array (insensible a mayúsculas)
+        if (!string.IsNullOrWhiteSpace(genre))
+        {
+            var regexGenre = new MongoDB.Bson.BsonRegularExpression(genre.Trim(), "i");
+            filters.Add(Builders<MovieDocument>.Filter.ElemMatch(x => x.Genre, g => g.ToLower().Contains(genre.Trim().ToLower())));
+            // Alternativa con regex si quieres buscar por coincidencia parcial
+            // filters.Add(Builders<MovieDocument>.Filter.Regex("Genre", regexGenre));
+        }
+
+        // Year rango dinámico
+        if (yearFrom.HasValue && yearTo.HasValue)
+            filters.Add(Builders<MovieDocument>.Filter.And(
+                Builders<MovieDocument>.Filter.Gte(x => x.Year, yearFrom.Value),
+                Builders<MovieDocument>.Filter.Lte(x => x.Year, yearTo.Value)
+            ));
+        else if (yearFrom.HasValue)
+            filters.Add(Builders<MovieDocument>.Filter.Gte(x => x.Year, yearFrom.Value));
+        else if (yearTo.HasValue)
+            filters.Add(Builders<MovieDocument>.Filter.Lte(x => x.Year, yearTo.Value));
+
+        // Popularity >=
+        if (popularity.HasValue)
+            filters.Add(Builders<MovieDocument>.Filter.Gte(x => x.Popularity, popularity.Value));
+
+        // Rating >=
+        if (rating.HasValue)
+            filters.Add(Builders<MovieDocument>.Filter.Gte(x => x.Rating, rating.Value));
+
+        var filter = filters.Count > 0
+            ? Builders<MovieDocument>.Filter.And(filters)
+            : Builders<MovieDocument>.Filter.Empty;
+
+        var find = _col.Find(filter);
+
+        // Orden dinámico
+        if (!string.IsNullOrWhiteSpace(orderBy))
+        {
+            var direction = orderDirection?.ToLower() == "asc" ? 1 : -1;
+            switch (orderBy.ToLower())
+            {
+                case "title":
+                    find = direction == 1 ? find.SortBy(x => x.Title) : find.SortByDescending(x => x.Title);
+                    break;
+                case "year":
+                    find = direction == 1 ? find.SortBy(x => x.Year) : find.SortByDescending(x => x.Year);
+                    break;
+                case "popularity":
+                    find = direction == 1 ? find.SortBy(x => x.Popularity) : find.SortByDescending(x => x.Popularity);
+                    break;
+                case "rating":
+                    find = direction == 1 ? find.SortBy(x => x.Rating) : find.SortByDescending(x => x.Rating);
+                    break;
+            }
+        }
+
+        var docs = await find.Limit(limit).ToListAsync(ct);
         _logger.LogInformation("{Count} movies found for search.", docs.Count);
         return docs.Select(x => x.ToDomain());
     }
@@ -93,5 +167,30 @@ public class MongoMovieRepository : IMovieRepository
         movie.Id = doc.Id; // ObjectId assigned by MongoDB
         _logger.LogInformation("Movie created with ID: {Id}", movie.Id);
         return movie;
+    }
+
+    public async Task<Movie?> UpdateAsync(Movie movie, CancellationToken ct = default)
+    {
+        _logger.LogInformation("Updating movie: {Id}", movie.Id);
+        var filter = Builders<MovieDocument>.Filter.Eq(x => x.Id, movie.Id);
+        var updateDoc = movie.ToDocument();
+
+        var result = await _col.ReplaceOneAsync(filter, updateDoc, cancellationToken: ct);
+
+        if (result.MatchedCount == 0)
+        {
+            _logger.LogWarning("No movie found to update with ID: {Id}", movie.Id);
+            return null;
+        }
+
+        _logger.LogInformation("Movie updated: {Id}", movie.Id);
+        return movie;
+    }
+
+    public async Task<bool> DeleteAsync(string id, CancellationToken ct = default)
+    {
+        var result = await _col.DeleteOneAsync(x => x.Id == id, ct);
+        _logger.LogInformation("Delete result for movie {Id}: {DeletedCount}", id, result.DeletedCount);
+        return result.DeletedCount > 0;
     }
 }
