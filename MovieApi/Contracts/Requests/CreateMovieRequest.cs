@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace MovieApi.Contracts;
+namespace MovieApi.Contracts.Requests;
 
 public class CreateMovieRequest
 {
