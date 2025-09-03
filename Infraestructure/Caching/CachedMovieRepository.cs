@@ -79,9 +79,19 @@ public class CachedMovieRepository : IMovieRepository
         return result;
     }
 
-    public async Task<IEnumerable<Movie>> SearchAsync(string? query, string? genre = null, int limit = Pagination.DefaultPageSize, CancellationToken ct = default)
+    public async Task<IEnumerable<Movie>> SearchAsync(
+        string? query = null,
+        string? genre = null,
+        int? yearFrom = null,
+        int? yearTo = null,
+        int? popularity = null,
+        double? rating = null,
+        string? orderBy = null,
+        string? orderDirection = null,
+        int limit = Pagination.DefaultPageSize,
+        CancellationToken ct = default)
     {
-        var key = $"movies:search:{query}:{genre}:{limit}";
+        var key = $"movies:search:{query}:{genre}:{yearFrom}:{yearTo}:{popularity}:{rating}:{orderBy}:{orderDirection}:{limit}";
         _logger.LogInformation("Trying to retrieve search results from cache with key '{CacheKey}'", key);
         var cached = await _cache.GetStringAsync(key, ct);
         if (!string.IsNullOrEmpty(cached))
@@ -91,7 +101,7 @@ public class CachedMovieRepository : IMovieRepository
         }
 
         _logger.LogInformation("Cache MISS for search results (key: '{CacheKey}'). Querying inner repository.", key);
-        var result = (await _inner.SearchAsync(query, genre, limit, ct)).ToList();
+        var result = (await _inner.SearchAsync(query, genre, yearFrom, yearTo, popularity, rating, orderBy, orderDirection, limit, ct)).ToList();
 
         var entryOpts = new DistributedCacheEntryOptions
         {
@@ -157,5 +167,28 @@ public class CachedMovieRepository : IMovieRepository
         var result = await _inner.CreateAsync(movie, ct);
         _logger.LogInformation("Movie created with ID: {Id}", result.Id);
         return result;
+    }
+
+    public async Task<Movie?> UpdateAsync(Movie movie, CancellationToken ct = default)
+    {
+        var updated = await _inner.UpdateAsync(movie, ct);
+
+        // Invalida la caché relevante
+        await _cache.RemoveAsync("movies:all", ct);
+        if (movie.Id is not null)
+            await _cache.RemoveAsync($"movies:id:{movie.Id}", ct);
+
+        return updated;
+    }
+
+    public async Task<bool> DeleteAsync(string id, CancellationToken ct = default)
+    {
+        var deleted = await _inner.DeleteAsync(id, ct);
+
+        // Invalida la caché relevante
+        await _cache.RemoveAsync("movies:all", ct);
+        await _cache.RemoveAsync($"movies:id:{id}", ct);
+
+        return deleted;
     }
 }

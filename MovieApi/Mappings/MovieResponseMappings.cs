@@ -1,5 +1,5 @@
 ﻿using Domain.Entities;
-using MovieApi.Contracts.Movies;
+using MovieApi.Contracts.Responses;
 
 namespace MovieApi.Mappings;
 

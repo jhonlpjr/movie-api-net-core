@@ -15,6 +15,8 @@ public static class DependencyInjection
         services.AddScoped<GetRecommendedMoviesUseCase>();
         services.AddScoped<SearchMoviesUseCase>();
         services.AddScoped<CreateMovieUseCase>();
+        services.AddScoped<UpdateMovieUseCase>();
+        services.AddScoped<DeleteMovieUseCase>();
 
         return services;
     }

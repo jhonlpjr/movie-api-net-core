@@ -1,4 +1,4 @@
-﻿namespace MovieApi.Contracts.Movies;
+﻿namespace MovieApi.Contracts.Responses;
 
 public class MovieResponse
 {
