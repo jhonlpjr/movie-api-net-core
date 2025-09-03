@@ -41,6 +41,11 @@ public static class DependencyInjection
             o.InstanceName = ro.InstanceName; // prefijo para claves de cache
         });
 
+        // Redis multiplexer para acceso directo (borrado por patrón)
+        services.AddSingleton<StackExchange.Redis.IConnectionMultiplexer>(sp =>
+            StackExchange.Redis.ConnectionMultiplexer.Connect(ro.ToConfigurationString())
+        );
+
         // Repo + Decorator (cache)
         services.AddScoped<IMovieRepository, MongoMovieRepository>();
         services.Decorate<IMovieRepository, CachedMovieRepository>(); // requiere Scrutor

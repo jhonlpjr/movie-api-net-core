@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using Moq;
 using MovieApi.Controllers;
 using Xunit;
+using MovieApi.Contracts.Requests;
 
 namespace Test.MovieApi
 {
@@ -64,14 +65,31 @@ namespace Test.MovieApi
         public async Task Search_ReturnsOkResult()
         {
             var repoMock = new Mock<IMovieRepository>();
-            repoMock.Setup(r => r.SearchAsync("Test", "Action", 10, It.IsAny<CancellationToken>()))
+            repoMock.Setup(r => r.SearchAsync(
+                It.IsAny<string?>(),
+                It.IsAny<string?>(),
+                It.IsAny<int?>(),
+                It.IsAny<int?>(),
+                It.IsAny<int?>(),
+                It.IsAny<double?>(),
+                It.IsAny<string?>(),
+                It.IsAny<string?>(),
+                It.IsAny<int>(),
+                It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new List<Movie> { new Movie("Test", new List<string> { "Action" }, 2020, 8.0, 10) });
 
             var useCase = new SearchMoviesUseCase(repoMock.Object);
             var loggerMock = new Mock<Microsoft.Extensions.Logging.ILogger<MoviesController>>();
             var controller = new MoviesController(loggerMock.Object);
 
-            var result = await controller.Search(useCase, "Test", "Action", 10, CancellationToken.None);
+            var request = new SearchMoviesRequest
+            {
+                Query = "Test",
+                Genre = Domain.Enums.MovieGenre.Action,
+                Limit = 10
+            };
+
+            var result = await controller.Search(useCase, request, CancellationToken.None);
 
             var okResult = Assert.IsType<OkObjectResult>(result);
             Assert.NotNull(okResult.Value);

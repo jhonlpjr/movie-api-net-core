@@ -14,7 +14,8 @@ namespace MovieApi.Tests.Infrastructure
     {
         private CachedMovieRepository CreateRepo(
             Mock<IMovieRepository>? innerMock = null,
-            Mock<IDistributedCache>? cacheMock = null)
+            Mock<IDistributedCache>? cacheMock = null,
+            Mock<StackExchange.Redis.IConnectionMultiplexer>? redisMock = null)
         {
             var cacheOptions = Options.Create(new CacheOptions { PopularMoviesTtlMinutes = 10, RecommendationsTtlMinutes = 10 });
             var loggerMock = new Mock<ILogger<CachedMovieRepository>>();
@@ -22,7 +23,8 @@ namespace MovieApi.Tests.Infrastructure
                 innerMock?.Object ?? new Mock<IMovieRepository>().Object,
                 cacheMock?.Object ?? new Mock<IDistributedCache>().Object,
                 cacheOptions,
-                loggerMock.Object
+                loggerMock.Object,
+                redisMock?.Object ?? new Mock<StackExchange.Redis.IConnectionMultiplexer>().Object
             );
         }
 
@@ -34,7 +36,8 @@ namespace MovieApi.Tests.Infrastructure
             // Configura el método base GetAsync en vez del método de extensión GetStringAsync
             cacheMock.Setup(c => c.GetAsync("movies:all", It.IsAny<CancellationToken>()))
                 .ReturnsAsync(System.Text.Encoding.UTF8.GetBytes(System.Text.Json.JsonSerializer.Serialize(movies)));
-            var repo = CreateRepo(cacheMock: cacheMock);
+            var redisMock = new Mock<StackExchange.Redis.IConnectionMultiplexer>();
+            var repo = CreateRepo(cacheMock: cacheMock, redisMock: redisMock);
 
             var result = await repo.GetAllAsync();
 

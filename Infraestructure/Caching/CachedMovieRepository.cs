@@ -6,6 +6,7 @@ using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System.Text.Json;
+using StackExchange.Redis;
 
 namespace Infrastructure.Caching;
 
@@ -15,6 +16,7 @@ public class CachedMovieRepository : IMovieRepository
     private readonly IMovieRepository _inner;
     private readonly IDistributedCache _cache;
     private readonly CacheOptions _opts;
+    private readonly IConnectionMultiplexer _redis;
 
     private static readonly JsonSerializerOptions JsonOpts = new() { WriteIndented = false };
 
@@ -22,12 +24,24 @@ public class CachedMovieRepository : IMovieRepository
         IMovieRepository inner,
         IDistributedCache cache,
         IOptions<CacheOptions> opts,
-        ILogger<CachedMovieRepository> logger)
+        ILogger<CachedMovieRepository> logger,
+        IConnectionMultiplexer redis)
     {
         _inner = inner;
         _cache = cache;
         _opts = opts.Value;
         _logger = logger;
+        _redis = redis;
+    }
+    // Borra todas las claves de cache de búsquedas
+    public async Task RemoveAllSearchCacheAsync()
+    {
+        var server = _redis.GetServer(_redis.GetEndPoints().First());
+        foreach (var key in server.Keys(pattern: "movieapi:movies:search:*"))
+        {
+            await _redis.GetDatabase().KeyDeleteAsync(key);
+        }
+        _logger.LogInformation("All search cache keys have been deleted.");
     }
 
     public async Task<IEnumerable<Movie>> GetAllAsync(CancellationToken ct = default)
@@ -166,6 +180,7 @@ public class CachedMovieRepository : IMovieRepository
         _logger.LogInformation("Creating new movie: {Title}", movie.Title);
         var result = await _inner.CreateAsync(movie, ct);
         _logger.LogInformation("Movie created with ID: {Id}", result.Id);
+        await RemoveAllSearchCacheAsync();
         return result;
     }
 
@@ -174,7 +189,8 @@ public class CachedMovieRepository : IMovieRepository
         var updated = await _inner.UpdateAsync(movie, ct);
 
         // Invalida la caché relevante
-        await _cache.RemoveAsync("movies:all", ct);
+        await RemoveAllSearchCacheAsync();
+
         if (movie.Id is not null)
             await _cache.RemoveAsync($"movies:id:{movie.Id}", ct);
 
@@ -186,8 +202,7 @@ public class CachedMovieRepository : IMovieRepository
         var deleted = await _inner.DeleteAsync(id, ct);
 
         // Invalida la caché relevante
-        await _cache.RemoveAsync("movies:all", ct);
-        await _cache.RemoveAsync($"movies:id:{id}", ct);
+        await RemoveAllSearchCacheAsync();
 
         return deleted;
     }
